@@ -2,6 +2,7 @@ from fastapi import APIRouter
 from app.state_store import current_state
 from services.state_service import update_state
 from services.decision_service import evaluate_actions
+from services.llm_service import generate_explanation
 
 router = APIRouter()
 
@@ -22,8 +23,16 @@ def update(data: dict):
 @router.get("/recommend")
 def recommend():
     results = evaluate_actions(current_state)
+    best = results[0]
+
+    explanation = generate_explanation(
+        current_state,
+        best,
+        results
+    )
 
     return {
-        "best_action": results[0],
-        "all_options": results
+        "best_action": best,
+        "all_options": results,
+        "ai_explanation": explanation
     }
