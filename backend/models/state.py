@@ -4,7 +4,10 @@ class UserState:
         self.stress = 0.5
         self.sleep_debt = 1.0
         self.activity_level = 0.4
-        self.nutrition_score = 0.6
+
+        self.time_of_day = "morning"
+        self.goal = "productivity"
+        self.history = []
 
     def to_dict(self):
         return {
@@ -12,5 +15,7 @@ class UserState:
             "stress": self.stress,
             "sleep_debt": self.sleep_debt,
             "activity_level": self.activity_level,
-            "nutrition_score": self.nutrition_score,
+            "time_of_day": self.time_of_day,
+            "goal": self.goal,
+            "history": self.history
         }

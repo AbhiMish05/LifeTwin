@@ -1,3 +1,4 @@
-from models.state import UserState
+from services.memory_service import load_state
 
-current_state = UserState()
+# Load saved state when server starts
+current_state = load_state()

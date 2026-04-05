@@ -1,17 +1,19 @@
 def generate_actions(state):
     actions = []
 
-    # context-aware actions (not random)
+    if state.time_of_day == "night":
+        return ["rest", "take_nap"]
+
     if state.energy > 0.6:
         actions.append("go_to_gym")
-        actions.append("play_sport")
 
     if state.sleep_debt > 1:
         actions.append("take_nap")
 
-    if state.stress > 0.6:
+    if state.stress > 0.5:
         actions.append("meditate")
 
-    actions.append("rest")
+    if state.energy < 0.4:
+        actions.append("rest")
 
-    return actions
+    return list(set(actions))

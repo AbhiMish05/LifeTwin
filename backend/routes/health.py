@@ -2,13 +2,18 @@ from fastapi import APIRouter
 from app.state_store import current_state
 from services.state_service import update_state
 from services.decision_service import evaluate_actions
-from services.llm_service import generate_explanation
+from services.training_service import generate_plan
+from services.memory_service import save_state
 
 router = APIRouter()
 
-@router.get("/health")
-def health_check():
-    return {"status": "ok"}
+
+@router.get("/plan")
+def plan():
+    return {
+        "goal": current_state.goal,
+        "plan": generate_plan(current_state)
+    }
 
 @router.get("/state")
 def get_state():
@@ -16,23 +21,35 @@ def get_state():
 
 @router.post("/update")
 def update(data: dict):
-    updated = update_state(current_state, data)
-    return updated.to_dict()
-
+    update_state(current_state, data)
+    save_state(current_state)
+    return current_state.to_dict()
 
 @router.get("/recommend")
 def recommend():
     results = evaluate_actions(current_state)
     best = results[0]
 
-    explanation = generate_explanation(
-        current_state,
-        best,
-        results
-    )
+    # save memory
+    current_state.history.append(best["action"])
+    save_state(current_state)
 
     return {
         "best_action": best,
         "all_options": results,
-        "ai_explanation": explanation
+        "ai_explanation": f"Best action is {best['action']} based on predicted improvements."
+    }
+
+@router.get("/simulate/{action}")
+def simulate(action: str):
+    from services.simulation_service import simulate_action_over_time
+    from services.scoring_service import score_state
+
+    predicted = simulate_action_over_time(current_state, action)
+    score = score_state(predicted)
+
+    return {
+        "action": action,
+        "predicted_state": predicted.to_dict(),
+        "score": score
     }
