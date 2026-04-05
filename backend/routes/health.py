@@ -1,6 +1,7 @@
 from fastapi import APIRouter
 from app.state_store import current_state
 from services.state_service import update_state
+from services.decision_service import evaluate_actions
 
 router = APIRouter()
 
@@ -16,3 +17,13 @@ def get_state():
 def update(data: dict):
     updated = update_state(current_state, data)
     return updated.to_dict()
+
+
+@router.get("/recommend")
+def recommend():
+    results = evaluate_actions(current_state)
+
+    return {
+        "best_action": results[0],
+        "all_options": results
+    }
