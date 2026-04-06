@@ -1,9 +1,16 @@
+BASE_ACTIONS = (
+    "go_to_gym",
+    "take_nap",
+    "meditate",
+    "rest",
+    "go_for_walk",
+    "deep_work",
+    "socialize",
+)
+
+
 def generate_actions(state):
-    # ✅ Always allow all actions
-    actions = ["go_to_gym", "take_nap", "meditate", "rest"]
+    if getattr(state, "time_of_day", None) == "night":
+        return [action for action in BASE_ACTIONS if action != "go_to_gym"]
 
-    # Optional filtering (soft, not hard return)
-    if state.time_of_day == "night":
-        actions.remove("go_to_gym")
-
-    return actions
+    return list(BASE_ACTIONS)

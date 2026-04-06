@@ -2,17 +2,36 @@ import React, { useState } from "react";
 import axios from "axios";
 import { motion } from "framer-motion";
 import {
-  LineChart, Line, XAxis, YAxis, Tooltip, Legend
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
 } from "recharts";
 
 function App() {
   const API = "http://localhost:8000";
 
+  const [stage, setStage] = useState("landing");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const [profile, setProfile] = useState({
+    name: "",
+    age: "",
+    diet: "vegetarian",
+    meal_timing: "",
+    routine: "",
+    sleep_pattern: "",
+  });
+
   const [input, setInput] = useState({
     sleep_hours: "",
     steps: "",
     screen_time: "",
-    goal: "productivity"
+    goal: "productivity",
   });
 
   const [open, setOpen] = useState(false);
@@ -21,187 +40,358 @@ function App() {
   const [recommendation, setRecommendation] = useState(null);
   const [simulation, setSimulation] = useState(null);
   const [plan, setPlan] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const actionsForWhatIf = ["go_to_gym", "take_nap", "meditate"];
 
   const handleChange = (e) => {
     setInput({ ...input, [e.target.name]: e.target.value });
   };
 
-  const updateState = async () => {
+  const handleProfileChange = (e) => {
+    setProfile({ ...profile, [e.target.name]: e.target.value });
+  };
+
+  const submitProfile = async (e) => {
+    e.preventDefault();
+    setError("");
     setLoading(true);
 
-    const res = await axios.post(`${API}/update`, {
-      sleep_hours: Number(input.sleep_hours) || 7,
-      steps: Number(input.steps) || 5000,
-      screen_time: Number(input.screen_time) || 3,
-      goal: input.goal
-    });
+    try {
+      await axios.post(`${API}/profile`, {
+        ...profile,
+        age: Number(profile.age) || 0,
+      });
 
-    setState(res.data);
+      setStage("dashboard");
 
-    setHistory(prev => [
-      ...prev,
-      {
-        index: prev.length + 1,
-        energy: res.data.energy,
-        stress: res.data.stress,
-        activity: res.data.activity_level
-      }
-    ]);
+      // Show immediate personalized output after onboarding.
+      const recRes = await axios.get(`${API}/recommend`);
+      setRecommendation(recRes.data);
+    } catch {
+      setError("Could not save profile right now. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    setLoading(false);
+  const updateState = async () => {
+    setError("");
+    setLoading(true);
+
+    try {
+      const res = await axios.post(`${API}/update`, {
+        sleep_hours: Number(input.sleep_hours) || 7,
+        steps: Number(input.steps) || 5000,
+        screen_time: Number(input.screen_time) || 3,
+        goal: input.goal,
+      });
+
+      setState(res.data);
+
+      setHistory((prev) => [
+        ...prev,
+        {
+          index: prev.length + 1,
+          energy: res.data.energy,
+          stress: res.data.stress,
+          activity: res.data.activity_level,
+        },
+      ]);
+    } catch {
+      setError("Could not update daily state. Please check backend and retry.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const getRecommendation = async () => {
+    setError("");
     setLoading(true);
-    const res = await axios.get(`${API}/recommend`);
-    setRecommendation(res.data);
-    setLoading(false);
+
+    try {
+      const res = await axios.get(`${API}/recommend`);
+      setRecommendation(res.data);
+    } catch {
+      setError("Could not fetch recommendation right now.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const simulateAction = async (action) => {
-    const res = await axios.get(`${API}/simulate/${action}`);
-    setSimulation({
-      before: state,
-      after: res.data.predicted_state,
-      action,
-      score: res.data.score
-    });
+    setError("");
+
+    try {
+      const res = await axios.get(`${API}/simulate/${action}`);
+      setSimulation({
+        before: state,
+        after: res.data.predicted_state,
+        action,
+        score: res.data.score,
+      });
+    } catch {
+      setError("Simulation failed. Please try another action.");
+    }
   };
 
   const getPlan = async () => {
-    const res = await axios.get(`${API}/plan`);
-    setPlan(res.data.plan);
+    setError("");
+
+    try {
+      const res = await axios.get(`${API}/plan`);
+      setPlan(res.data.plan);
+    } catch {
+      setError("Could not generate plan right now.");
+    }
   };
 
   const formatAction = (a) => a.replace(/_/g, " ");
 
   const formatLabel = (g) => g.replace("_", " ").toUpperCase();
 
-  return (
-    <div style={styles.container}>
-
-      <h1 style={styles.title}>LifeTwin AI</h1>
+  const renderLanding = () => (
+    <motion.section
+      style={styles.hero}
+      initial={{ opacity: 0, y: 22 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.45 }}
+    >
+      <h1 style={styles.title}>LifeTwin</h1>
       <p style={styles.subtitle}>
-        Simulating your future to optimize your health decisions
+        An AI-driven system that analyzes daily habits like meal timings,
+        sleep patterns, and routines to offer personalized, context-aware
+        health suggestions.
+      </p>
+      <p style={styles.disclaimer}>
+        LifeTwin supports better everyday decisions and does not replace
+        medical advice.
       </p>
 
-      {/* INPUT */}
-      <motion.div style={styles.card} whileHover={{ scale: 1.02 }}>
-        <h2>Daily Input</h2>
+      <motion.button
+        style={styles.buttonPrimary}
+        whileHover={{ scale: 1.04 }}
+        whileTap={{ scale: 0.96 }}
+        onClick={() => setStage("onboarding")}
+      >
+        Get Started
+      </motion.button>
+    </motion.section>
+  );
 
-        <div style={styles.row}>
-          <input name="sleep_hours" placeholder="Sleep (hrs)" onChange={handleChange} style={styles.input}/>
-          <input name="steps" placeholder="Steps" onChange={handleChange} style={styles.input}/>
-          <input name="screen_time" placeholder="Screen Time" onChange={handleChange} style={styles.input}/>
+  const renderOnboarding = () => (
+    <motion.section
+      style={styles.card}
+      initial={{ opacity: 0, y: 18 }}
+      animate={{ opacity: 1, y: 0 }}
+    >
+      <h2 style={styles.cardTitle}>Tell Us About Your Routine</h2>
+      <form style={styles.form} onSubmit={submitProfile}>
+        <input
+          style={styles.input}
+          name="name"
+          value={profile.name}
+          onChange={handleProfileChange}
+          placeholder="Name"
+          required
+        />
+        <input
+          style={styles.input}
+          name="age"
+          type="number"
+          min="1"
+          value={profile.age}
+          onChange={handleProfileChange}
+          placeholder="Age"
+          required
+        />
+
+        <select
+          style={styles.input}
+          name="diet"
+          value={profile.diet}
+          onChange={handleProfileChange}
+        >
+          <option value="vegetarian">Vegetarian</option>
+          <option value="non_vegetarian">Non Vegetarian</option>
+        </select>
+
+        <input
+          style={styles.input}
+          name="meal_timing"
+          value={profile.meal_timing}
+          onChange={handleProfileChange}
+          placeholder="Meal timings (e.g. 8am, 1pm, 8pm)"
+          required
+        />
+
+        <input
+          style={styles.input}
+          name="sleep_pattern"
+          value={profile.sleep_pattern}
+          onChange={handleProfileChange}
+          placeholder="Sleep pattern (e.g. 11pm to 6am)"
+          required
+        />
+
+        <textarea
+          style={styles.textarea}
+          name="routine"
+          value={profile.routine}
+          onChange={handleProfileChange}
+          placeholder="Other routines (workout, work schedule, breaks, etc.)"
+          rows={4}
+          required
+        />
+
+        <div style={styles.buttonRow}>
+          <button
+            style={styles.buttonGhost}
+            type="button"
+            onClick={() => setStage("landing")}
+          >
+            Back
+          </button>
+          <button style={styles.buttonPrimary} type="submit" disabled={loading}>
+            {loading ? "Saving..." : "Continue"}
+          </button>
+        </div>
+      </form>
+    </motion.section>
+  );
+
+  const renderDashboard = () => (
+    <>
+      <motion.section style={styles.card} initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+        <h2 style={styles.cardTitle}>Welcome, {profile.name || "User"}</h2>
+        <p style={styles.smallText}>
+          We use your habits and daily signals to generate practical health suggestions.
+        </p>
+      </motion.section>
+
+      <motion.section style={styles.card} whileHover={{ scale: 1.01 }}>
+        <h2 style={styles.cardTitle}>Daily Input</h2>
+
+        <div style={styles.rowWrap}>
+          <input
+            name="sleep_hours"
+            placeholder="Sleep (hrs)"
+            onChange={handleChange}
+            style={styles.input}
+            value={input.sleep_hours}
+          />
+          <input
+            name="steps"
+            placeholder="Steps"
+            onChange={handleChange}
+            style={styles.input}
+            value={input.steps}
+          />
+          <input
+            name="screen_time"
+            placeholder="Screen Time (hrs)"
+            onChange={handleChange}
+            style={styles.input}
+            value={input.screen_time}
+          />
         </div>
 
-        {/* CUSTOM DROPDOWN */}
         <div style={styles.dropdown}>
-          <div
-            style={styles.dropdownSelected}
-            onClick={() => setOpen(!open)}
-          >
-            <div style={{ display: "flex", justifyContent: "space-between", width: "100%" }}>
+          <div style={styles.dropdownSelected} onClick={() => setOpen(!open)}>
+            <div style={styles.dropdownSelectedInner}>
               {formatLabel(input.goal)}
-              <span style={{ opacity: 0.6 }}>▼</span>
+              <span style={{ opacity: 0.7 }}>▼</span>
             </div>
           </div>
 
           {open && (
             <div style={styles.dropdownMenu}>
               {["productivity", "fat_loss", "relaxation"].map((g) => (
-              <motion.div
-                key={g}
-                style={styles.dropdownItem}
-                whileHover={{
-                  backgroundColor: "#1f1f1f",
-                  paddingLeft: "18px",
-                  scale: 1.02
-                }}
-                onClick={() => {
-                  setInput({ ...input, goal: g });
-                  setOpen(false);
-                }}
-              >
-                {formatLabel(g)}
-              </motion.div>
-            ))}
+                <motion.div
+                  key={g}
+                  style={styles.dropdownItem}
+                  whileHover={{ backgroundColor: "#e9efe7" }}
+                  onClick={() => {
+                    setInput({ ...input, goal: g });
+                    setOpen(false);
+                  }}
+                >
+                  {formatLabel(g)}
+                </motion.div>
+              ))}
             </div>
           )}
         </div>
 
         <motion.button
-          style={styles.button}
+          style={styles.buttonPrimary}
           onClick={updateState}
-          whileHover={{ scale: 1.08, boxShadow: "0 0 20px #ff512f" }}
+          whileHover={{ scale: 1.03 }}
           whileTap={{ scale: 0.95 }}
         >
           Update State
         </motion.button>
-      </motion.div>
+      </motion.section>
 
-      {/* STATE */}
       {state && (
-        <motion.div style={styles.card} initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-          <h2>Current State</h2>
+        <motion.section style={styles.card} initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+          <h2 style={styles.cardTitle}>Current State</h2>
 
           <div style={styles.metrics}>
             <Metric label="Energy" value={state.energy} />
             <Metric label="Stress" value={state.stress} />
             <Metric label="Activity" value={state.activity_level} />
           </div>
-        </motion.div>
+        </motion.section>
       )}
 
-      {/* GRAPH */}
       {history.length > 0 && (
-        <motion.div style={styles.card}>
-          <h2>Trends</h2>
-
-          <LineChart width={700} height={300} data={history}>
-            <XAxis dataKey="index" />
-            <YAxis />
-            <Tooltip />
-            <Legend />
-            <Line type="monotone" dataKey="energy" stroke="#00ffcc" />
-            <Line type="monotone" dataKey="stress" stroke="#ff4d4d" />
-            <Line type="monotone" dataKey="activity" stroke="#4da6ff" />
-          </LineChart>
-        </motion.div>
+        <motion.section style={styles.card}>
+          <h2 style={styles.cardTitle}>Trends</h2>
+          <div style={styles.chartWrap}>
+            <ResponsiveContainer width="100%" height={280}>
+              <LineChart data={history}>
+                <XAxis dataKey="index" />
+                <YAxis />
+                <Tooltip />
+                <Legend />
+                <Line type="monotone" dataKey="energy" stroke="#5a7f5a" strokeWidth={2} />
+                <Line type="monotone" dataKey="stress" stroke="#c06d35" strokeWidth={2} />
+                <Line type="monotone" dataKey="activity" stroke="#245f73" strokeWidth={2} />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </motion.section>
       )}
 
-      {/* RECOMMENDATION */}
-      <motion.div style={styles.card}>
+      <motion.section style={styles.card}>
         <motion.button
-          style={styles.button}
+          style={styles.buttonPrimary}
           onClick={getRecommendation}
-          whileHover={{ scale: 1.08 }}
+          whileHover={{ scale: 1.03 }}
         >
           Get Recommendation
         </motion.button>
 
-        {loading && <p>🤖 Simulating your future...</p>}
+        {loading && <p style={styles.smallText}>Analyzing your profile and state...</p>}
 
         {recommendation && (
-          <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }}>
-            <h3>{formatAction(recommendation.best_action.action)}</h3>
-            <p>{recommendation.ai_explanation}</p>
+          <motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }}>
+            <h3 style={{ marginBottom: 8 }}>{formatAction(recommendation.best_action.action)}</h3>
+            <p style={styles.smallText}>{recommendation.ai_explanation}</p>
           </motion.div>
         )}
-      </motion.div>
+      </motion.section>
 
-      {/* SIMULATION */}
-      <motion.div style={styles.card}>
-        <h2>What If</h2>
+      <motion.section style={styles.card}>
+        <h2 style={styles.cardTitle}>What If</h2>
 
-        <div style={styles.row}>
-          {["go_to_gym","take_nap","meditate"].map((a) => (
+        <div style={styles.rowWrap}>
+          {actionsForWhatIf.map((a) => (
             <motion.button
               key={a}
               style={styles.buttonAlt}
-              whileHover={{ scale: 1.05 }}
+              whileHover={{ scale: 1.04 }}
               onClick={() => simulateAction(a)}
+              disabled={!state}
             >
               {formatAction(a)}
             </motion.button>
@@ -210,27 +400,38 @@ function App() {
 
         {simulation && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-            <p>Energy: {simulation.before.energy.toFixed(2)} → {simulation.after.energy.toFixed(2)}</p>
-            <p>Stress: {simulation.before.stress.toFixed(2)} → {simulation.after.stress.toFixed(2)}</p>
+            <p>
+              Energy: {simulation.before.energy.toFixed(2)} to {simulation.after.energy.toFixed(2)}
+            </p>
+            <p>
+              Stress: {simulation.before.stress.toFixed(2)} to {simulation.after.stress.toFixed(2)}
+            </p>
           </motion.div>
         )}
-      </motion.div>
+      </motion.section>
 
-      {/* PLAN */}
-      <motion.div style={styles.card}>
-        <h2>Training Plan</h2>
+      <motion.section style={styles.card}>
+        <h2 style={styles.cardTitle}>Training Plan</h2>
 
-        <motion.button style={styles.button} whileHover={{ scale: 1.05 }} onClick={getPlan}>
+        <motion.button style={styles.buttonPrimary} whileHover={{ scale: 1.03 }} onClick={getPlan}>
           Generate Plan
         </motion.button>
 
         {plan.map((p, i) => (
-          <motion.p key={i} initial={{ x: -20 }} animate={{ x: 0 }}>
-            ✅ {p}
+          <motion.p key={i} initial={{ x: -15 }} animate={{ x: 0 }} style={styles.smallText}>
+            - {p}
           </motion.p>
         ))}
-      </motion.div>
+      </motion.section>
+    </>
+  );
 
+  return (
+    <div style={styles.container}>
+      {stage === "landing" && renderLanding()}
+      {stage === "onboarding" && renderOnboarding()}
+      {stage === "dashboard" && renderDashboard()}
+      {error && <p style={styles.error}>{error}</p>}
     </div>
   );
 }
@@ -248,59 +449,95 @@ export default App;
 
 const styles = {
   container: {
-    padding: "40px",
-    fontFamily: "'Inter', sans-serif",
-    background: "radial-gradient(circle at top, #141414, #000)",
+    maxWidth: "1050px",
+    margin: "0 auto",
+    padding: "36px 18px 60px",
+    fontFamily: "'Trebuchet MS', 'Gill Sans', sans-serif",
+    background: "radial-gradient(circle at 15% 10%, #eff4e9 0%, #f5efe2 44%, #f8f8f5 100%)",
     minHeight: "100vh",
-    color: "white"
+    color: "#1f2b2e",
+  },
+
+  hero: {
+    textAlign: "center",
+    marginTop: "9vh",
+    padding: "28px",
+    borderRadius: "20px",
+    background: "linear-gradient(145deg, rgba(255,255,255,0.86), rgba(236,245,234,0.8))",
+    border: "1px solid #dbe5d5",
+    boxShadow: "0 18px 45px rgba(54, 69, 61, 0.12)",
   },
 
   title: {
-    fontSize: "40px",
-    fontWeight: "700",
-    textAlign: "center",
-    background: "linear-gradient(90deg,#ff512f,#dd2476)",
-    WebkitBackgroundClip: "text",
-    WebkitTextFillColor: "transparent"
+    fontSize: "48px",
+    letterSpacing: "1px",
+    marginBottom: "10px",
+    color: "#17392b",
   },
 
   subtitle: {
-    textAlign: "center",
-    color: "#aaa",
-    marginBottom: "30px"
+    fontSize: "18px",
+    lineHeight: 1.55,
+    maxWidth: "740px",
+    margin: "0 auto 14px",
   },
 
-  row: {
+  disclaimer: {
+    fontSize: "14px",
+    color: "#54645c",
+    marginBottom: "24px",
+  },
+
+  form: {
+    display: "grid",
+    gap: "12px",
+  },
+
+  rowWrap: {
     display: "flex",
     gap: "10px",
-    marginBottom: "15px"
+    flexWrap: "wrap",
+    marginBottom: "14px",
   },
 
   input: {
     flex: 1,
     padding: "12px",
     borderRadius: "10px",
-    border: "1px solid rgba(255,255,255,0.2)",
-    background: "rgba(255,255,255,0.05)",
-    color: "white"
+    border: "1px solid #cfd8cf",
+    background: "#ffffff",
+    color: "#203133",
+    minWidth: "160px",
+  },
+
+  textarea: {
+    borderRadius: "10px",
+    border: "1px solid #cfd8cf",
+    background: "#ffffff",
+    color: "#203133",
+    padding: "12px",
+    resize: "vertical",
   },
 
   dropdown: {
-  position: "relative",
-  marginTop: "12px",
-  width: "220px",
-  zIndex: 1000
+    position: "relative",
+    marginTop: "12px",
+    width: "230px",
+    zIndex: 1000,
   },
 
   dropdownSelected: {
     padding: "12px 14px",
     borderRadius: "12px",
-    background: "rgba(255,255,255,0.06)",
-    border: "1px solid rgba(255,255,255,0.15)",
+    background: "#ffffff",
+    border: "1px solid #cfd8cf",
     cursor: "pointer",
+  },
+
+  dropdownSelectedInner: {
     display: "flex",
     justifyContent: "space-between",
-    alignItems: "center"
+    width: "100%",
   },
 
   dropdownMenu: {
@@ -308,59 +545,103 @@ const styles = {
     top: "110%",
     left: 0,
     width: "100%",
-    background: "rgba(20,20,20,0.95)",
+    background: "#f8f9f4",
     borderRadius: "12px",
-    border: "1px solid rgba(255,255,255,0.1)",
+    border: "1px solid #cfdbc7",
     overflow: "hidden",
-    boxShadow: "0px 10px 30px rgba(0,0,0,0.6)",
-    zIndex: 9999   // 👈 VERY IMPORTANT
+    boxShadow: "0 12px 24px rgba(0,0,0,0.08)",
+    zIndex: 9999,
   },
 
   dropdownItem: {
     padding: "12px 14px",
     cursor: "pointer",
-    transition: "all 0.2s ease"
+    transition: "all 0.2s ease",
+  },
+
+  cardTitle: {
+    marginTop: 0,
+    marginBottom: "12px",
+    color: "#17392b",
   },
 
   card: {
-    background: "rgba(255,255,255,0.05)",
-    border: "1px solid rgba(255,255,255,0.1)",
-    //backdropFilter: "blur(12px)",
+    background: "rgba(255,255,255,0.82)",
+    border: "1px solid #d7e0d0",
     padding: "25px",
-    // position: "relative",
     borderRadius: "16px",
     marginBottom: "25px",
-    overflow: "visible"
+    overflow: "visible",
+    boxShadow: "0 14px 32px rgba(40, 58, 45, 0.1)",
   },
 
-  button: {
-    padding: "12px",
+  buttonPrimary: {
+    padding: "12px 16px",
     borderRadius: "10px",
     border: "none",
-    background: "linear-gradient(135deg,#ff512f,#dd2476)",
-    color: "white",
+    background: "linear-gradient(135deg, #27624b, #478064)",
+    color: "#f7fff7",
     cursor: "pointer",
-    marginTop: "10px"
+    marginTop: "10px",
+    fontWeight: 700,
+  },
+
+  buttonGhost: {
+    padding: "12px 16px",
+    borderRadius: "10px",
+    border: "1px solid #b5c5b4",
+    background: "#eef4ea",
+    color: "#2f4a3f",
+    cursor: "pointer",
+    marginTop: "10px",
   },
 
   buttonAlt: {
-    padding: "10px",
+    padding: "10px 12px",
     borderRadius: "10px",
-    background: "rgba(255,255,255,0.1)",
-    border: "1px solid rgba(255,255,255,0.2)",
-    color: "white",
-    cursor: "pointer"
+    background: "#edf2ea",
+    border: "1px solid #c4d0c2",
+    color: "#1f3631",
+    cursor: "pointer",
   },
 
   metrics: {
     display: "flex",
-    justifyContent: "space-around"
+    justifyContent: "space-around",
+    gap: "10px",
+    flexWrap: "wrap",
   },
 
   metric: {
-    background: "rgba(255,255,255,0.05)",
+    background: "#f2f5ec",
     padding: "15px",
     borderRadius: "12px",
-    textAlign: "center"
-  }
+    textAlign: "center",
+    minWidth: "120px",
+    border: "1px solid #dde5d7",
+  },
+
+  chartWrap: {
+    width: "100%",
+    height: "280px",
+  },
+
+  smallText: {
+    color: "#486159",
+    lineHeight: 1.45,
+  },
+
+  buttonRow: {
+    display: "flex",
+    gap: "10px",
+    flexWrap: "wrap",
+  },
+
+  error: {
+    color: "#a34733",
+    background: "#ffe8de",
+    border: "1px solid #f3c9bc",
+    borderRadius: "10px",
+    padding: "10px 12px",
+  },
 };

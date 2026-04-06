@@ -1,23 +1,23 @@
 def score_state(state):
-    score = (
-        state.energy * 0.5 +
-        (1 - state.stress) * 0.5
+    energy = state.energy
+    stress = state.stress
+    activity_level = state.activity_level
+
+    # BASE HEALTH
+    base = (
+        energy * 0.4 +
+        (1 - stress) * 0.4 +
+        activity_level * 0.2
     )
 
+    # 🎯 GOAL BASED DIFFERENTIATION
     if state.goal == "fat_loss":
-        score += state.activity_level * 0.5
+        return base + activity_level * 0.6
 
     elif state.goal == "productivity":
-        score += state.energy * 0.3
+        return base + energy * 0.5 - stress * 0.3
 
     elif state.goal == "relaxation":
-        score += (1 - state.stress) * 0.4
+        return base + (1 - stress) * 0.6
 
-    # penalties
-    if state.energy < 0.3:
-        score -= 0.4
-
-    if state.stress > 0.8:
-        score -= 0.4
-
-    return score
+    return base

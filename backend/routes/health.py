@@ -6,7 +6,13 @@ from services.training_service import generate_plan
 from services.memory_service import save_state
 
 router = APIRouter()
+user_profile = {}
 
+@router.post("/profile")
+def save_profile(data: dict):
+    global user_profile
+    user_profile = data
+    return {"message": "Profile saved"}
 
 @router.get("/plan")
 def plan():
@@ -27,7 +33,7 @@ def update(data: dict):
 
 @router.get("/recommend")
 def recommend():
-    results = evaluate_actions(current_state)
+    results = evaluate_actions(current_state, user_profile)
     best = results[0]
 
     # save memory

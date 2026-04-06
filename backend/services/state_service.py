@@ -1,5 +1,9 @@
 from datetime import datetime
-from models.state import UserState
+
+
+def _clamp01(value):
+    return max(0, min(1, value))
+
 
 def get_time_of_day():
     hour = datetime.now().hour
@@ -30,8 +34,8 @@ def update_state(state, data):
     state.goal = data.get("goal", "productivity")
 
     # 🔒 Clamp
-    state.energy = max(0, min(1, state.energy))
-    state.stress = max(0, min(1, state.stress))
-    state.activity_level = max(0, min(1, state.activity_level))
+    state.energy = _clamp01(state.energy)
+    state.stress = _clamp01(state.stress)
+    state.activity_level = _clamp01(state.activity_level)
 
     return state

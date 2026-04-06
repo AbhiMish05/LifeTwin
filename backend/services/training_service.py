@@ -1,3 +1,10 @@
+GOAL_ACTIONS = {
+    "fat_loss": "Do 30 min cardio",
+    "productivity": "Focus on deep work for 2 hours",
+    "relaxation": "Avoid screens and relax",
+}
+
+
 def generate_plan(state):
     plan = []
 
@@ -10,13 +17,8 @@ def generate_plan(state):
     if state.activity_level < 0.4:
         plan.append("Go for a 20 min walk")
 
-    if state.goal == "fat_loss":
-        plan.append("Do 30 min cardio")
-
-    if state.goal == "productivity":
-        plan.append("Focus on deep work for 2 hours")
-
-    if state.goal == "relaxation":
-        plan.append("Avoid screens and relax")
+    goal_action = GOAL_ACTIONS.get(state.goal)
+    if goal_action:
+        plan.append(goal_action)
 
     return plan
