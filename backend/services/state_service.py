@@ -10,20 +10,26 @@ def get_time_of_day():
     else:
         return "night"
 
-def update_state(state: UserState, data: dict):
+def update_state(state, data):
     sleep = data.get("sleep_hours", 7)
     steps = data.get("steps", 5000)
     screen = data.get("screen_time", 3)
 
-    state.energy += (sleep - 7) * 0.05
-    state.stress += screen * 0.02
-    state.activity_level += steps / 10000
-    state.sleep_debt += max(0, 7 - sleep)
+    # ✅ RESET BASELINE (VERY IMPORTANT)
+    state.energy = 0.5
+    state.stress = 0.5
+    state.activity_level = 0.3
+    state.sleep_debt = 0
 
-    state.time_of_day = get_time_of_day()
+    # ✅ APPLY EFFECTS (NOT ACCUMULATIVE)
+    state.energy += (sleep - 7) * 0.1
+    state.stress += screen * 0.05
+    state.activity_level += steps / 15000
+    state.sleep_debt = max(0, 7 - sleep)
+
     state.goal = data.get("goal", "productivity")
 
-    # clamp
+    # 🔒 Clamp
     state.energy = max(0, min(1, state.energy))
     state.stress = max(0, min(1, state.stress))
     state.activity_level = max(0, min(1, state.activity_level))

@@ -1,23 +1,22 @@
 def generate_plan(state):
+    plan = []
+
+    if state.energy < 0.4:
+        plan.append("Take a 20 min nap")
+
+    if state.stress > 0.6:
+        plan.append("Do 10 min meditation")
+
+    if state.activity_level < 0.4:
+        plan.append("Go for a 20 min walk")
+
     if state.goal == "fat_loss":
-        return [
-            "30 min cardio",
-            "10k steps daily",
-            "Reduce sugar intake"
-        ]
+        plan.append("Do 30 min cardio")
 
-    elif state.goal == "productivity":
-        return [
-            "Deep work 2 hours",
-            "20 min nap",
-            "Limit screen time"
-        ]
+    if state.goal == "productivity":
+        plan.append("Focus on deep work for 2 hours")
 
-    elif state.goal == "relaxation":
-        return [
-            "Meditation 15 min",
-            "Light walk",
-            "Reduce workload"
-        ]
+    if state.goal == "relaxation":
+        plan.append("Avoid screens and relax")
 
-    return []
+    return plan

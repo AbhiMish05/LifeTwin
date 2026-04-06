@@ -4,10 +4,13 @@ from services.scoring_service import score_state
 
 def generate_reason(old, new, action):
     return f"""
-Energy: {round(old.energy,2)} → {round(new.energy,2)},
-Stress: {round(old.stress,2)} → {round(new.stress,2)}
-"""
+Action: {action}
 
+Energy: {old.energy:.2f} → {new.energy:.2f}
+Stress: {old.stress:.2f} → {new.stress:.2f}
+
+This action improves your overall balance.
+"""
 def evaluate_actions(state):
     actions = generate_actions(state)
     results = []
